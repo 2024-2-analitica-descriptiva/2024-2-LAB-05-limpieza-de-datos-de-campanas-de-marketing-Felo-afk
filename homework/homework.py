@@ -3,18 +3,17 @@ Escriba el codigo que ejecute la accion solicitada.
 """
 
 # pylint: disable=import-outside-toplevel
+import glob
+import pandas as pd
+import zipfile
+import os
 
 
 def clean_campaign_data():
-    import os
-    import glob
-    import zipfile
-    import pandas as pd
-
     """
     En esta tarea se le pide que limpie los datos de una campaña de
     marketing realizada por un banco, la cual tiene como fin la
-    recolección de datos de clientes para ofrecerls un préstamo.
+    recolección de datos de df_clientes para ofrecerls un préstamo.
 
     La información recolectada se encuentra en la carpeta
     files/input/ en varios archivos csv.zip comprimidos para ahorrar
@@ -50,24 +49,24 @@ def clean_campaign_data():
     - client_id
     - const_price_idx
     - eurobor_three_months
-    
+
 
 
     """
 
     def charge_data(input_folder):
-        def unzip_files(input_folder):
-            azip = glob.glob(os.path.join(input_folder, "*.zip"))
-            for azip in azip:
+        def unzip(input_folder):
+            archivos = glob.glob(os.path.join(input_folder, "*.zip"))
+            for azip in archivos:
                 with zipfile.ZipFile(azip, "r") as zip_ref:
-                    for info in zip_ref.infolist():
-                        with zip_ref.open(info) as archivo:
+                    for archivo_info in zip_ref.infolist():
+                        with zip_ref.open(archivo_info) as archivo:
                             yield pd.read_csv(archivo)
 
-        dataframes = [df for df in unzip_files(input_folder)]
+        dataframes = [df for df in unzip(input_folder)]
         return pd.concat(dataframes, ignore_index=True)
 
-    def clientes(df):
+    def clients(df):
         cols = [
             "client_id",
             "age",
@@ -77,26 +76,26 @@ def clean_campaign_data():
             "credit_default",
             "mortgage",
         ]
-        clientes = df[cols].copy()
-        clientes["job"] = (
-            clientes["job"]
+        df_clientes = df[cols].copy()
+        df_clientes["job"] = (
+            df_clientes["job"]
             .str.replace(".", "", regex=False)
             .str.replace("-", "_", regex=False)
         )
-        clientes["education"] = (
-            clientes["education"]
+        df_clientes["education"] = (
+            df_clientes["education"]
             .str.replace(".", "_", regex=False)
             .replace("unknown", pd.NA)
         )
-        clientes["credit_default"] = clientes["credit_default"].apply(
+        df_clientes["credit_default"] = df_clientes["credit_default"].apply(
             lambda x: 1 if x == "yes" else 0
         )
-        clientes["mortgage"] = clientes["mortgage"].apply(
+        df_clientes["mortgage"] = df_clientes["mortgage"].apply(
             lambda x: 1 if x == "yes" else 0
         )
-        return clientes
+        return df_clientes
 
-    def campañas(df):
+    def campaigns(df):
         cols = [
             "client_id",
             "number_contacts",
@@ -106,7 +105,7 @@ def clean_campaign_data():
             "campaign_outcome",
             "last_contact_date",
         ]
-        campañas = df.copy()
+        df_campañas = df.copy()
         meses = {
             "jan": 1,
             "feb": 2,
@@ -121,46 +120,45 @@ def clean_campaign_data():
             "nov": 11,
             "dec": 12,
         }
-        campañas["month"] = campañas["month"].str.lower().map(meses)
-        campañas["last_contact_date"] = pd.to_datetime(
+        df_campañas["month"] = df_campañas["month"].str.lower().map(meses)
+        df_campañas["last_contact_date"] = pd.to_datetime(
             "2022-"
-            + campañas["month"].astype(str).str.zfill(2)
+            + df_campañas["month"].astype(str).str.zfill(2)
             + "-"
-            + campañas["day"].astype(str).str.zfill(2),
+            + df_campañas["day"].astype(str).str.zfill(2),
             format="%Y-%m-%d",
         )
-        campañas["previous_outcome"] = campañas["previous_outcome"].apply(
+        df_campañas["previous_outcome"] = df_campañas["previous_outcome"].apply(
             lambda x: 1 if x == "success" else 0
         )
-        campañas["campaign_outcome"] = campañas["campaign_outcome"].apply(
+        df_campañas["campaign_outcome"] = df_campañas["campaign_outcome"].apply(
             lambda x: 1 if x == "yes" else 0
         )
-        return campañas[cols]
+        return df_campañas[cols]
 
-    def economia(df):
+    def economy(df):
         cols = ["client_id", "cons_price_idx", "euribor_three_months"]
-        economia = df[cols].copy()
-        return economia
+        df_economia = df[cols].copy()
+        return df_economia
 
-    def save(clientes, campañas, economia, carpeta_salida):
+    def save_data(df_clientes, df_campañas, economia, carpeta_salida):
         if not os.path.exists(carpeta_salida):
             os.makedirs(carpeta_salida)
-        clientes.to_csv(os.path.join(carpeta_salida, "client.csv"), index=False)
-        campañas.to_csv(os.path.join(carpeta_salida, "campaign.csv"), index=False)
+        df_clientes.to_csv(os.path.join(carpeta_salida, "client.csv"), index=False)
+        df_campañas.to_csv(os.path.join(carpeta_salida, "campaign.csv"), index=False)
         economia.to_csv(os.path.join(carpeta_salida, "economics.csv"), index=False)
 
     # Cargar datos
-    df = charge_data("files\input")
+    df = charge_data("files/input")
 
     # Procesar datos
-    clientes = clientes(df)
-    campañas = campañas(df)
-    economia = economia(df)
+    df_clientes = clients(df)
+    df_campañas = campaigns(df)
+    economia = economy(df)
 
     # Guardar datos
     print("Guardando los archivos procesados en la carpeta de salida...")
-    save(clientes, campañas, economia, "files\output")
+    save_data(df_clientes, df_campañas, economia, "files/output")
 
 
-if __name__ == "__main__":
-    clean_campaign_data()
+clean_campaign_data()
